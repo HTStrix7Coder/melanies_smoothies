@@ -4,8 +4,6 @@
 import streamlit as st
 import pandas as pd
 import requests
-
-from snowflake.snowpark.context import get_active_session
 from snowflake.snowpark.functions import col
 
 # --------------------------------
@@ -21,9 +19,10 @@ name_on_order = st.text_input("Name on Smoothie:")
 st.write("The name on your Smoothie will be:", name_on_order)
 
 # --------------------------------
-# Snowflake session (SiS ONLY)
+# Snowflake connection (Streamlit Cloud)
 # --------------------------------
-session = get_active_session()
+cnx = st.connection("snowflake")
+session = cnx.session()
 
 # --------------------------------
 # Load fruit options
@@ -34,8 +33,10 @@ fruit_df = (
 )
 
 pd_df = fruit_df.to_pandas()
-# Optional debug view
-st.dataframe(pd_df, use_container_width=True)
+
+# Optional debug
+# st.dataframe(pd_df, use_container_width=True)
+
 # --------------------------------
 # Multiselect
 # --------------------------------
@@ -44,17 +45,17 @@ ingredients_list = st.multiselect(
     pd_df["FRUIT_NAME"].tolist(),
     max_selections=5
 )
+
 # --------------------------------
 # Process selection
 # --------------------------------
 if ingredients_list:
 
-    # ✅ Deterministic, clean string
+    # 🔒 Deterministic, clean string (NO hash corruption)
     ingredients_string = " ".join(ingredients_list)
 
     for fruit_chosen in ingredients_list:
 
-        # Get SEARCH_ON value
         search_on = pd_df.loc[
             pd_df["FRUIT_NAME"] == fruit_chosen,
             "SEARCH_ON"
@@ -67,7 +68,7 @@ if ingredients_list:
         st.subheader(f"{fruit_chosen} Nutrition Information")
 
         # --------------------------------
-        # Safe API call (SiS-friendly)
+        # External API call (allowed on Streamlit Cloud)
         # --------------------------------
         try:
             response = requests.get(
@@ -78,13 +79,13 @@ if ingredients_list:
             if response.status_code == 200:
                 st.dataframe(response.json(), use_container_width=True)
             else:
-                st.warning("Nutrition API returned no data.")
+                st.warning("Nutrition data not found.")
 
-        except Exception as e:
-            st.warning("External API unavailable in this environment.")
+        except Exception:
+            st.warning("Nutrition API unavailable.")
 
     # --------------------------------
-    # Insert order
+    # Insert order into Snowflake
     # --------------------------------
     insert_sql = """
         INSERT INTO smoothies.public.orders (ingredients, name_on_order)
