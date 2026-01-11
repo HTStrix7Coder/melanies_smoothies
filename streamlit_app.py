@@ -36,7 +36,7 @@ my_dataframe = (
 pd_df = my_dataframe.to_pandas()
 
 # (Optional – uncomment if you want to see the table)
-st.dataframe(pd_df, use_container_width=True)
+#st.dataframe(pd_df, use_container_width=True)
 
 # --------------------------------
 # Multiselect (uses FRUIT_NAME only)
